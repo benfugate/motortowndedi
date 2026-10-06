@@ -1,28 +1,33 @@
 services:
-  motortowndedicated:
-    build:
-      context: .
-      args:
-        - GAME_ID=${GAME_ID}
-        - GAME_ID_ARGS=${GAME_ID_ARGS}
-        - GAME_PARAMS=${GAME_PARAMS}
-    image: motortowndedicated
-    container_name: motortowndedicated
-    network_mode: bridge
-    ports:
-      - "27015:27015"
-      - "27015:27015/UDP"
-      - "7777:7777"
-      - "7777:7777/UDP"
-      - "8998:8080"
+  motortown:
+    image: ghcr.io/benfugate/motortowndedi:latest
+    # Uncomment to build locally instead of pulling the published image.
+    # build:
+    #   context: .
+    container_name: ${CONTAINER_NAME:-motortown}
+    restart: unless-stopped
+    # Host networking, not bridge. On bridge the server advertises the container's internal
+    # address in its session URL ("172.17.0.x:7777"), which no client can reach.
+    network_mode: host
+    stop_grace_period: 150s  # must exceed SHUTDOWN_TIMEOUT so the world gets written
     environment:
-      - USERNAME=${STEAM_USERNAME}
-      - PASSWRD=${STEAM_PASSWORD}
-      - GAME_ID=${GAME_ID}
-      - GAME_ID_ARGS=${GAME_ID_ARGS}
-      - GAME_PARAMS=${GAME_PARAMS}
+      STEAM_USERNAME: ${STEAM_USERNAME}
+      STEAM_PASSWORD: ${STEAM_PASSWORD:-}
+      STEAM_BRANCH: ${STEAM_BRANCH:-beta}
+      STEAM_BETA_PASSWORD: ${STEAM_BETA_PASSWORD:-}
+      VALIDATE: ${VALIDATE:-false}
+      SERVER_PARAMS: ${SERVER_PARAMS:-Jeju_World?listen? -server -useperfthreads}
+      PUID: ${PUID:-99}
+      PGID: ${PGID:-100}
+      UMASK: ${UMASK:-000}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-120}
     volumes:
-      - /mnt/user/appdata/motortowndedicated:/serverdata/serverfiles
-      - /mnt/user/appdata/steamcmd:/serverdata/steamcmd
+      # The server install, which is also where DedicatedServerConfig.json and
+      # MotorTown/Saved/SaveGames live. This is the one that must be backed up.
+      - ${APPDATA:-/mnt/user/appdata/motortown}/serverfiles:/serverdata/serverfiles
+      # steamcmd itself.
+      - ${APPDATA:-/mnt/user/appdata/motortown}/steamcmd:/serverdata/steamcmd
+      # Cached Steam login (so Steam Guard is answered once) and the Proton prefix.
+      - ${APPDATA:-/mnt/user/appdata/motortown}/Steam:/serverdata/Steam
     labels:
-      - "net.unraid.docker.icon=${ICON_PATH}"
+      - "net.unraid.docker.icon=${ICON_URL:-https://raw.githubusercontent.com/benfugate/motortowndedi/main/motortown.png}"
